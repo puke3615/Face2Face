@@ -175,11 +175,18 @@ def correct_colours(im1, im2, landmarks1):
             im2_blur.astype(numpy.float64))
 
 
-def swap(frame, target):
-    im2, landmarks2 = read_frame_and_landmarks(frame)
-    if landmarks2 is None or not len(landmarks2):
+def swap(frame, target, reverse=False):
+    if reverse:
+        im2, landmarks2 = read_frame_and_landmarks(frame)
+        im1, landmarks1 = read_im_and_landmarks(target)
+    else:
+        im1, landmarks1 = read_frame_and_landmarks(frame)
+        im2, landmarks2 = read_im_and_landmarks(target)
+    if landmarks1 is None \
+            or not len(landmarks1) \
+            or landmarks2 is None \
+            or not len(landmarks2):
         return None
-    im1, landmarks1 = read_im_and_landmarks(target)
     M = transformation_from_points(landmarks1[ALIGN_POINTS],
                                    landmarks2[ALIGN_POINTS])
     mask = get_face_mask(im2, landmarks2)
@@ -198,6 +205,8 @@ height = 240
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
+target = 'input.png'
+
 while cap.isOpened():
     ret, frame = cap.read()
     frame = cv2.resize(frame, (width * SCALE_FACTOR,
@@ -206,12 +215,15 @@ while cap.isOpened():
     if not ret:
         continue
 
-    output = swap(frame, 'input.png')
+    output1 = swap(frame, target, reverse=False)
+    output2 = swap(frame, target, reverse=True)
 
-    compare = numpy.zeros((height, width * 2, 3), numpy.uint8)
-    compare[:, :width, :] = frame
-    if output is not None:
-        compare[:, width:, :] = output
+    compare = numpy.zeros((height * 2, width * 2, 3), numpy.uint8)
+    compare[height // 2:3 * height // 2, :width, :] = frame
+    if output1 is not None:
+        compare[:height, width:, :] = output1
+    if output2 is not None:
+        compare[height:, width:, :] = output2
     cv2.imshow('compare', compare)
 
     if cv2.waitKey(1) & 0xff == ord('q'):
